@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { AlertTriangle, ChevronRight, Gauge, TrainFront, Waves, AlertCircle } from "lucide-react";
+import { useMemo, useState, useCallback } from "react";
+import { AlertTriangle, ChevronRight, Gauge, TrainFront, Waves, AlertCircle, RefreshCw } from "lucide-react";
 
 import { Shell } from "@/components/trainwatch/Shell";
 import { SensorChart } from "@/components/trainwatch/SensorChart";
 import { SENSORS, SENSOR_KEYS, type SensorKey } from "@/lib/trainwatch/config";
 import { useFleetData } from "@/hooks/use-fleet-data";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -58,10 +59,17 @@ function statusStyles(status: "ok" | "watch" | "critical") {
 }
 
 function FleetConsole() {
-  const { data: sim, loading, error } = useFleetData();
+  const { data: sim, loading, error, refetch } = useFleetData();
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const worst = sim?.health[0];
   const [selectedId, setSelectedId] = useState<string>(worst?.trainId ?? "T-101");
   const [windowDays, setWindowDays] = useState<number>(3);
+
+  const handleRefresh = useCallback(() => {
+    refetch?.();
+  }, [refetch]);
+
+  const { isRefreshing } = useAutoRefresh(handleRefresh, 30000, autoRefreshEnabled);
 
   if (loading) {
     return (
@@ -126,20 +134,39 @@ function FleetConsole() {
           </div>
           <h1 className="mt-1 text-2xl font-semibold">Fleet health</h1>
         </div>
-        <div className="flex items-center gap-1 rounded-md border border-border bg-panel p-1">
-          {RANGE_OPTIONS.map((opt) => (
-            <button
-              key={opt.label}
-              onClick={() => setWindowDays(opt.days)}
-              className={`rounded px-3 py-1 font-mono text-xs uppercase tracking-wider transition ${
-                windowDays === opt.days
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-md border border-border bg-panel p-1">
+            {RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => setWindowDays(opt.days)}
+                className={`rounded px-3 py-1 font-mono text-xs uppercase tracking-wider transition ${
+                  windowDays === opt.days
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => handleRefresh()}
+            disabled={loading}
+            className="rounded px-3 py-1 text-muted-foreground hover:text-foreground transition disabled:opacity-50"
+            title="Refresh data"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          </button>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={autoRefreshEnabled}
+              onChange={(e) => setAutoRefreshEnabled(e.target.checked)}
+              className="rounded"
+            />
+            <span>Auto-refresh (30s)</span>
+          </label>
         </div>
       </div>
 
