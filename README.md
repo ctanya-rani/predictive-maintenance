@@ -10,6 +10,42 @@ Two frontends available:
 
 ![Dashboard (light mode)](docs/dashboard-light.png)
 
+## Features
+
+**Anomaly Detection:**
+- Seasonal robust z-score (spikes)
+- EWMA drift tracking (progressive wear)
+- Stuck-channel detection (sensor failure)
+- Engineering limits (hard thresholds)
+
+**Alert System:**
+- Episode-based alerts (no point spam)
+- Automated maintenance recommendations
+- Health scores (0–100 per train)
+- Active alert tracking
+
+**APIs:**
+- `/api/fleet` — complete fleet data
+- `/api/train/<id>` — specific train detail
+- `/api/alerts?severity=crit&train_id=T-101` — filtered alerts
+- `/api/sensor/<train>/<sensor>` — time-series data
+- OpenAPI 3.0 specification included
+
+**Web Console:**
+- Fleet health summary (stat tiles)
+- Per-train health meters & status
+- Anomaly-flagged sensor charts (4 channels × time range)
+- Alert feed with recommendations
+- Auto-refresh (30s, respects prefers-reduced-motion)
+- CSV export (alerts & health)
+- Light/dark mode
+
+**Deployment:**
+- Docker Compose for local dev (`docker-compose up`)
+- GitHub Actions CI (test, lint, build)
+- Gunicorn + static build for production
+- Single-container Docker option
+
 ## Quick start
 
 ### Option 1: Static HTML dashboard (no build, no dependencies)
@@ -23,22 +59,56 @@ Open `output/dashboard.html` in a browser. It's a single self-contained file.
 
 ### Option 2: React web app + API (modern UI, scalable)
 
-**Terminal 1 — Backend API:**
+**With Docker Compose (recommended):**
 ```bash
-pip install -r requirements.txt
-python api.py
+docker-compose up
 ```
 
-**Terminal 2 — Frontend:**
+Open `http://localhost:5173` for the frontend, `http://localhost:5000` for the API.
+
+**Or manually:**
 ```bash
+# Terminal 1 — Backend API
+pip install -r requirements.txt
+python api.py
+
+# Terminal 2 — Frontend
 cd frontend
-npm install          # or bun install
+npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+See **[SETUP.md](SETUP.md)** for production deployment.
 
-See **[SETUP.md](SETUP.md)** for production deployment (Docker, gunicorn, etc.)
+### What to explore
+
+1. **Dashboard** — view fleet health, train detail, sensor charts
+2. **Drill down** — click a train in the sidebar to see its alerts
+3. **Auto-refresh** — toggle "Auto-refresh (30s)" to poll for updates
+4. **Export** — (coming: right-click alerts to export to CSV)
+5. **API** — curl `http://localhost:5000/api/fleet | jq` or open OpenAPI spec in Swagger UI
+
+## Documentation
+
+- **[SETUP.md](SETUP.md)** — deployment (Docker, production)
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — design, extending, scaling
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — development guide
+- **[openapi.yml](openapi.yml)** — API specification
+
+## What's in this repo
+
+```
+trainwatch/              Python backend (generation, detection, alerts)
+frontend/                React web console (TanStack Start, Tailwind, Recharts)
+api.py                   Flask API server
+tests/                   pytest suite (30 tests)
+.github/workflows/       GitHub Actions (CI/CD)
+docker-compose.yml       Local dev (one command)
+openapi.yml              API specification
+SETUP.md                 Deployment guide
+ARCHITECTURE.md          Design & extending
+CONTRIBUTING.md          Development guide
+```
 
 ## What it does
 
