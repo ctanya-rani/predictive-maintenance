@@ -1,24 +1,44 @@
 # TrainWatch — predictive maintenance dashboard
 
-A predictive-maintenance demo for a small train fleet, built on **synthetic
-sensor data**: a data generator with injected fault patterns, a statistical
-anomaly-detection pipeline, an alert engine with maintenance recommendations,
-and a self-contained HTML dashboard.
+A predictive-maintenance platform for a train fleet: synthetic sensor data with
+injected faults → anomaly detection → maintenance alerts → interactive web
+console.
+
+Two frontends available:
+- **Static HTML** (`output/dashboard.html`) — single file, no build, works offline
+- **React web app** (`frontend/`) — modern UI, wired to Python API backend
 
 ![Dashboard (light mode)](docs/dashboard-light.png)
 
 ## Quick start
 
+### Option 1: Static HTML dashboard (no build, no dependencies)
+
 ```bash
 pip install -r requirements.txt
-python -m trainwatch          # generates everything into ./output
+python -m trainwatch
 ```
 
-Then open `output/dashboard.html` in a browser — it is a single file with no
-external assets, so it works straight from `file://`.
+Open `output/dashboard.html` in a browser. It's a single self-contained file.
 
-Options: `--days N` (history length, default 14), `--seed N` (reproducible
-fleet), `--out DIR`.
+### Option 2: React web app + API (modern UI, scalable)
+
+**Terminal 1 — Backend API:**
+```bash
+pip install -r requirements.txt
+python api.py
+```
+
+**Terminal 2 — Frontend:**
+```bash
+cd frontend
+npm install          # or bun install
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser.
+
+See **[SETUP.md](SETUP.md)** for production deployment (Docker, gunicorn, etc.)
 
 ## What it does
 
@@ -89,12 +109,43 @@ payload shape.
 ## Project layout
 
 ```
-trainwatch/
-  config.py      fleet, sensor specs, fault narratives, detector tuning
-  generate.py    synthetic telemetry generator
-  detect.py      statistical anomaly detectors
-  alerts.py      episode alerts, recommendations, health scores
-  dashboard.py   HTML dashboard renderer (inline SVG/JS, no dependencies)
-  __main__.py    pipeline CLI
-tests/           pytest suite
+trainwatch/               Python backend
+├─ config.py            fleet, sensor specs, fault narratives
+├─ generate.py          synthetic telemetry generator
+├─ detect.py            statistical anomaly detectors
+├─ alerts.py            episode alerts & health scores
+├─ dashboard.py         HTML dashboard renderer
+└─ __main__.py          pipeline CLI
+
+api.py                   Flask API server (serves /api/fleet)
+SETUP.md                 Deployment guide
+
+frontend/                React + TanStack Start
+├─ src/routes/          page routes (fleet console, etc.)
+├─ src/components/      UI components (charts, train list)
+├─ src/hooks/           useFleetData (API fetcher)
+├─ src/lib/             config, simulation (fallback)
+└─ package.json         dependencies
+
+tests/                   pytest suite
+output/                  generated telemetry & dashboard
+```
+
+## Architecture
+
+```
+                    Static HTML
+                   (single file)
+                        │
+Python → Generate       ├─→ JSON payload
+Backend  + Detect       │   (embedded)
+         + Score        │
+                        ├─→ Serve as API
+                        │
+                  React Frontend
+                   (http://localhost:5173)
+                        │
+                   fetch /api/fleet
+                        │
+                   Display & filter
 ```
