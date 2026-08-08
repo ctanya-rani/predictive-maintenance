@@ -88,17 +88,46 @@ def test_fleet_health_sorted_by_score(client):
 
 
 def test_fleet_alerts_sorted(client):
-    """Alerts should be sorted with active first, then by severity."""
+    """Alerts are ordered most-urgent-first: active, then critical, then recent."""
     response = client.get("/api/fleet")
     alerts = response.json["alerts"]
-    if len(alerts) > 1:
-        # Active alerts come first
-        active_statuses = [a["active"] for a in alerts]
-        for i in range(1, len(active_statuses)):
-            if active_statuses[i-1] and not active_statuses[i]:
-                # Found transition from active to inactive, should not happen again
-                assert not any(active_statuses[j] for j in range(i, len(active_statuses)))
-                break
+    assert len(alerts) > 1, "fixture should produce several alerts to order"
+
+    # The emitted order must match the documented ranking exactly.
+    def rank(a):
+        return (not a["active"], {"crit": 0, "warn": 1}[a["severity"]], -a["endTs"])
+
+    assert [rank(a) for a in alerts] == sorted(rank(a) for a in alerts)
+
+    # Guard the specific regression: every active alert precedes every
+    # resolved one, so resolved noise can never push live faults down.
+    last_active = max(i for i, a in enumerate(alerts) if a["active"])
+    first_resolved = min(i for i, a in enumerate(alerts) if not a["active"])
+    assert last_active < first_resolved
+
+
+def test_active_criticals_lead_the_feed(client):
+    """Active critical alerts must land in the window the dashboard renders.
+
+    The console shows only the first 12 alerts, so an ordering bug that pushes
+    live critical faults past that cutoff hides exactly what the tool exists to
+    surface.
+    """
+    response = client.get("/api/fleet")
+    alerts = response.json["alerts"]
+
+    active_crits = [a for a in alerts if a["active"] and a["severity"] == "crit"]
+    assert active_crits, "seeded faults should leave active critical alerts"
+
+    visible = alerts[:12]
+    for alert in active_crits:
+        assert alert in visible, (
+            f"active critical {alert['trainId']}/{alert['sensor']} fell outside "
+            "the 12 alerts the dashboard renders"
+        )
+
+    # They should also be at the very front of the list.
+    assert all(a["active"] and a["severity"] == "crit" for a in alerts[: len(active_crits)])
 
 
 def test_fleet_endpoint_caching(client):

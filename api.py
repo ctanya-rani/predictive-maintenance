@@ -6,9 +6,7 @@ Used by the React frontend instead of client-side simulation.
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import json
 import logging
-import time
 
 from trainwatch.alerts import build_alerts, health_scores
 from trainwatch.config import TRAIN_IDS, SENSORS
@@ -96,10 +94,15 @@ def _get_simulation():
         _simulation = {
             "historyEndMs": int(scored["timestamp"].max().timestamp() * 1000),
             "health": sorted(train_health, key=lambda h: h["score"]),
+            # Most urgent first: active before resolved, critical before warning,
+            # then most recently seen. Ascending sort ensures smaller values = higher priority.
             "alerts": sorted(
                 alert_rows,
-                key=lambda a: (not a["active"], {"crit": 0, "warn": 1}[a["severity"]], a["endTs"]),
-                reverse=True,
+                key=lambda a: (
+                    not a["active"],
+                    {"crit": 0, "warn": 1}[a["severity"]],
+                    -a["endTs"],
+                ),
             ),
             "series": series,
             "totalSamples": len(data),
