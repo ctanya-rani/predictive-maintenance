@@ -7,3 +7,5 @@ venv/
 output/
 frontend/.output/
 frontend/node_modules/
+frontend/.wrangler/
+frontend/src/routeTree.gen.ts
